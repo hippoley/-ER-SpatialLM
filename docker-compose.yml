@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  spatiallm:
+    build: .
+    volumes:
+      - .:/app
+      - ./data:/app/data  # 用于存储数据集和模型
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    tty: true
+    stdin_open: true
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all 
