@@ -30,29 +30,37 @@ RUN update-ca-certificates && \
 RUN set -x && \
     MINICONDA_FILE="Miniconda3-latest-Linux-x86_64.sh" && \
     MINICONDA_DEST="/root/${MINICONDA_FILE}" && \
-    MIRRORS=( \
-        "https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/${MINICONDA_FILE}" \
-        "https://mirrors.bfsu.edu.cn/anaconda/miniconda/${MINICONDA_FILE}" \
-        "https://mirrors.ustc.edu.cn/anaconda/miniconda/${MINICONDA_FILE}" \
-        "https://repo.anaconda.com/miniconda/${MINICONDA_FILE}" \
-    ) && \
-    for i in {1..5}; do \
-        echo "Download attempt $i of 5" && \
-        for mirror in "${MIRRORS[@]}"; do \
-            echo "Trying mirror: $mirror" && \
-            if curl -sL --connect-timeout 30 --retry 5 --retry-delay 10 \
-                    --retry-max-time 300 -o "${MINICONDA_DEST}" "$mirror"; then \
-                echo "Successfully downloaded from $mirror" && \
-                break 2; \
-            else \
-                echo "Failed to download from $mirror" && \
-                continue; \
+    MAX_TRIES=5 && \
+    ATTEMPT=1 && \
+    while [ $ATTEMPT -le $MAX_TRIES ]; do \
+        echo "Download attempt $ATTEMPT of $MAX_TRIES" && \
+        if curl -sL --connect-timeout 30 --retry 5 --retry-delay 10 \
+                --retry-max-time 300 -o "${MINICONDA_DEST}" \
+                "https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/${MINICONDA_FILE}" || \
+           curl -sL --connect-timeout 30 --retry 5 --retry-delay 10 \
+                --retry-max-time 300 -o "${MINICONDA_DEST}" \
+                "https://mirrors.bfsu.edu.cn/anaconda/miniconda/${MINICONDA_FILE}" || \
+           curl -sL --connect-timeout 30 --retry 5 --retry-delay 10 \
+                --retry-max-time 300 -o "${MINICONDA_DEST}" \
+                "https://mirrors.ustc.edu.cn/anaconda/miniconda/${MINICONDA_FILE}" || \
+           curl -sL --connect-timeout 30 --retry 5 --retry-delay 10 \
+                --retry-max-time 300 -o "${MINICONDA_DEST}" \
+                "https://repo.anaconda.com/miniconda/${MINICONDA_FILE}"; then \
+            echo "Successfully downloaded Miniconda" && \
+            break; \
+        else \
+            echo "All mirrors failed on attempt $ATTEMPT" && \
+            ATTEMPT=$((ATTEMPT + 1)) && \
+            if [ $ATTEMPT -le $MAX_TRIES ]; then \
+                echo "Waiting before retry..." && \
+                sleep 30; \
             fi \
-        done && \
-        echo "All mirrors failed, waiting before retry..." && \
-        sleep 30; \
+        fi \
     done && \
-    [ -f "${MINICONDA_DEST}" ] || exit 1 && \
+    if [ ! -f "${MINICONDA_DEST}" ]; then \
+        echo "Failed to download Miniconda after $MAX_TRIES attempts" && \
+        exit 1; \
+    fi && \
     chmod +x "${MINICONDA_DEST}" && \
     bash "${MINICONDA_DEST}" -b -p /opt/conda && \
     rm "${MINICONDA_DEST}"
